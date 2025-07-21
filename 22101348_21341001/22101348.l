@@ -50,7 +50,7 @@ integers [0-9]+
 {id}       {
                 symbol_info *s = new symbol_info((string)yytext,"ID");
                 yylval = (YYSTYPE)s;
-                loglist="Line no "+to_string(lines)+": Token <ID> Lexeme "+yytext+" found"+"\n"+"\n";
+                loglist="Line no "+to_string(lines)+": Token <ID> Lexeme "+yytext+" found"+"\n"+"\n";  
 			    outlog<<loglist;
                 return ID;
             }
