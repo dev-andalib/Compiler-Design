@@ -186,10 +186,10 @@ printf    {
                 return ID;
             }
 
-/* operator */
 
 
-"++" | "--" {
+
+"++"|"--" {
                 symbol_info *s = new symbol_info((string)yytext,"INCOP");
                 yylval = (YYSTYPE)s;
                 loglist = "Line no " + to_string(lines) + ": Token <INCOP> Lexeme " + yytext + " found\n\n";
@@ -205,7 +205,7 @@ printf    {
                 return ADDOP;
 		    }
 
-"*" | "/" | "%" {
+"*"|"/"|"%"     {
                 symbol_info *s = new symbol_info((string)yytext,"MULOP");
                 yylval = (YYSTYPE)s;
                 loglist = "Line no " + to_string(lines) + ": Token <MULOP> Lexeme " + yytext + " found\n\n";
@@ -214,21 +214,21 @@ printf    {
 
 
 
-"==" | "!=" | "<=" | ">=" | "<" | ">" {
+"=="|"!="|"<="|">="|"<"|">"   {
                 symbol_info *s = new symbol_info((string)yytext,"RELOP");
                 yylval = (YYSTYPE)s;
                 loglist = "Line no " + to_string(lines) + ": Token <RELOP> Lexeme " + yytext + " found\n\n";
                 outlog << loglist;
                 return RELOP; }
 
-"=" {
+"="            {
                 symbol_info *s = new symbol_info((string)yytext,"ASSIGNOP");
                 yylval = (YYSTYPE)s;
                 loglist = "Line no " + to_string(lines) + ": Token <ASSIGNOP> Lexeme " + yytext + " found\n\n";
                 outlog << loglist;
                 return ASSIGNOP; }
 
-"&&" | "||" {
+"&&"|"||" {
                 symbol_info *s = new symbol_info((string)yytext,"LOGICOP");
                 yylval = (YYSTYPE)s;
                 loglist = "Line no " + to_string(lines) + ": Token <LOGICOP> Lexeme " + yytext + " found\n\n";
@@ -243,7 +243,7 @@ printf    {
                 return NOT; }
 
 
-/* punctuators */
+
 
 "(" {
                 loglist = "Line no " + to_string(lines) + ": Token <LPAREN> Lexeme " + yytext + " found\n\n";
@@ -292,7 +292,7 @@ printf    {
                 return SEMICOLON; }
 
 
-/* No catch-all rule */
 
-.  { loglist = "Unrecognized character"; ...; }
+
+
 %%

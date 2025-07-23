@@ -7,11 +7,11 @@
 
 int yyparse(void);
 int yylex(void);
+void yyerror(const char* s);
 
 
-extern YYSTYPE yylval; 
-extern int yylex()
 extern FILE *yyin;
+
 
 
 ofstream outlog;
@@ -193,15 +193,9 @@ declaration_list : declaration_list COMMA ID
     }
     ;
 
-
-
-statement : FOR LPAREN expression_statement expression_statement expression RPAREN statement
-	  {
-	    	outlog<<"At line no: "<<lines<<" statement : FOR LPAREN expression_statement expression_statement expression RPAREN statement "<<endl<<endl;
-			outlog<<"for("<<$3->getname()<<$4->getname()<<$5->getname()<<")\n"<<$7->getname()<<endl<<endl;
-			
-			$$ = new symbol_info("for("+$3->getname()+$4->getname()+$5->getname()+")\n"+$7->getname(),"stmnt");
-	  }
+statements : statement
+           | statements statement
+           ;
 
 
 statement : var_declaration
@@ -222,43 +216,44 @@ statement : var_declaration
         outlog << $1->getname() << endl << endl;
         $$ = new symbol_info($1->getname(), "compound_statement");
     }
-    | FOR LPAREN expression_statement expression_statement expression RPAREN statement
-    {
-        outlog << "At line no: " << lines << " statement : FOR LPAREN expression_statement expression_statement expression RPAREN statement " << endl << endl;
-        outlog << "for(" << $3->getname() << $4->getname() << $5->getname() << ")" << $7->getname() << endl << endl;
-        $$ = new symbol_info("for(" + $3->getname() + $4->getname() + $5->getname() + ")" + $7->getname(), "stmnt");
-    }
     | IF LPAREN expression RPAREN statement
     {
         outlog << "At line no: " << lines << " statement : IF LPAREN expression RPAREN statement " << endl << endl;
         outlog << "if(" << $3->getname() << ")" << $5->getname() << endl << endl;
-        $$ = new symbol_info("if(" + $3->getname() + ")" + $5->getname(), "stmnt");
+        $$ = new symbol_info("if(" + $3->getname() + ")" + $5->getname(), "if_statement");
     }
     | IF LPAREN expression RPAREN statement ELSE statement
     {
         outlog << "At line no: " << lines << " statement : IF LPAREN expression RPAREN statement ELSE statement " << endl << endl;
         outlog << "if(" << $3->getname() << ")" << $5->getname() << " else " << $7->getname() << endl << endl;
-        $$ = new symbol_info("if(" + $3->getname() + ")" + $5->getname() + " else " + $7->getname(), "stmnt");
+        $$ = new symbol_info("if(" + $3->getname() + ")" + $5->getname() + " else " + $7->getname(), "if_else_statement");
+    }
+    | FOR LPAREN expression_statement expression_statement expression RPAREN statement
+    {
+        outlog << "At line no: " << lines << " statement : FOR LPAREN expression_statement expression_statement expression RPAREN statement " << endl << endl;
+        outlog << "for(" << $3->getname() << $4->getname() << $5->getname() << ")" << $7->getname() << endl << endl;
+        $$ = new symbol_info("for(" + $3->getname() + $4->getname() + $5->getname() + ")" + $7->getname(), "for_statement");
     }
     | WHILE LPAREN expression RPAREN statement
     {
         outlog << "At line no: " << lines << " statement : WHILE LPAREN expression RPAREN statement " << endl << endl;
         outlog << "while(" << $3->getname() << ")" << $5->getname() << endl << endl;
-        $$ = new symbol_info("while(" + $3->getname() + ")" + $5->getname(), "stmnt");
+        $$ = new symbol_info("while(" + $3->getname() + ")" + $5->getname(), "while_statement");
     }
-    | PRINTLN LPAREN ID RPAREN SEMICOLON
+    | PRINTF LPAREN ID RPAREN SEMICOLON
     {
-        outlog << "At line no: " << lines << " statement : PRINTLN LPAREN ID RPAREN SEMICOLON " << endl << endl;
-        outlog << "println(" << $3->getname() << ");" << endl << endl;
-        $$ = new symbol_info("println(" + $3->getname() + ");", "stmnt");
+        outlog << "At line no: " << lines << " statement : PRINTF LPAREN ID RPAREN SEMICOLON " << endl << endl;
+        outlog << "printf(" << $3->getname() << ");" << endl << endl;
+        $$ = new symbol_info("printf(" + $3->getname() + ");", "print_statement");
     }
     | RETURN expression SEMICOLON
     {
         outlog << "At line no: " << lines << " statement : RETURN expression SEMICOLON " << endl << endl;
         outlog << "return " << $2->getname() << ";" << endl << endl;
-        $$ = new symbol_info("return " + $2->getname() + ";", "stmnt");
+        $$ = new symbol_info("return " + $2->getname() + ";", "return_statement");
     }
     ;
+
 
 
 expression_statement : SEMICOLON
@@ -458,6 +453,10 @@ arguments : arguments COMMA logic_expression
 
 %%
 
+
+void yyerror(const char *s) {
+    fprintf(stderr, "Error: %s\n", s);
+}
 
 
 
