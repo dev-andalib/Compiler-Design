@@ -37,7 +37,7 @@ digit	 [0-9]
 
 /* write regular expressions for id, float and integers */
 id        [a-zA-Z_][a-zA-Z0-9_]*
-digit     [0-9]
+
 integer  {digit}+
 float     ({digit}*"."{digit}+([Ee][+-]?{digit}+)?|{digit}+"."([Ee][+-]?{digit}+)?|"."{digit}+([Ee][+-]?{digit}+)?|{digit}+[Ee][+-]?{digit}+)
 
@@ -189,6 +189,14 @@ printf    {
 /* operator */
 
 
+"++" | "--" {
+                symbol_info *s = new symbol_info((string)yytext,"INCOP");
+                yylval = (YYSTYPE)s;
+                loglist = "Line no " + to_string(lines) + ": Token <INCOP> Lexeme " + yytext + " found\n\n";
+                outlog << loglist;
+                return INCOP;}
+
+
 "+"|"-"	    {
                 symbol_info *s = new symbol_info((string)yytext,"ADDOP");
                 yylval = (YYSTYPE)s;
@@ -204,12 +212,7 @@ printf    {
                 outlog << loglist;
                 return MULOP;}
 
-"++" | "--" {
-                symbol_info *s = new symbol_info((string)yytext,"INCOP");
-                yylval = (YYSTYPE)s;
-                loglist = "Line no " + to_string(lines) + ": Token <INCOP> Lexeme " + yytext + " found\n\n";
-                outlog << loglist;
-                return INCOP;}
+
 
 "==" | "!=" | "<=" | ">=" | "<" | ">" {
                 symbol_info *s = new symbol_info((string)yytext,"RELOP");
@@ -288,4 +291,8 @@ printf    {
                 outlog << loglist;
                 return SEMICOLON; }
 
+
+/* No catch-all rule */
+
+.  { loglist = "Unrecognized character"; ...; }
 %%
