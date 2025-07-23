@@ -46,7 +46,7 @@ float     ({digit}*"."{digit}+([Ee][+-]?{digit}+)?|{digit}+"."([Ee][+-]?{digit}+
 %%
 
 {ws}		{ /* ignore whitespace */ }
-{newline}	{ lines += 1 }
+{newline}	{ lines ++ ; }
 
 
 if          { 
