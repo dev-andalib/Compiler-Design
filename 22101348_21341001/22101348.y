@@ -16,7 +16,7 @@ extern FILE *yyin;
 
 ofstream outlog;
 
-int lines;
+int lines = 1;
 
 
 
