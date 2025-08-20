@@ -155,8 +155,8 @@ void scope_table::print_scope_table(ofstream& outlog)
                 outlog << "Return Type: " << sym->get_var_type() << '\n';
                 const std::vector<std::string>& pt = sym->get_param_type();
                 const std::vector<std::string>& pn = sym->get_param_name();
-
-                 outlog << "Parameter Details: ";
+                outlog << "Number of Parameters: " << pt.size() << '\n';
+                outlog << "Parameter Details: ";
                 if (pt.empty())
                  {
                     outlog << "(None)\n";
