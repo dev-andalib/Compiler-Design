@@ -179,9 +179,9 @@ void scope_table::print_scope_table(ofstream& outlog)
 
 scope_table::~scope_table()
 {
-    for(list<symbol_info*>& bucket: table)
+    for(list<symbol_info*>& bucket: table) // loop over each bucket in scope table
     {
-        for (symbol_info * s: bucket) delete s;
+        for (symbol_info * s: bucket) delete s; // delete it and clear bucket
         bucket.clear();
     }
 }

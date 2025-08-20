@@ -22,6 +22,7 @@ public:
     {
         this->name = name;
         this->type = type; // not include all the private attributes as the whole declaration too lengthy
+        this->array_size = -1;
     }
 
     /* Write necessary functions to set and 

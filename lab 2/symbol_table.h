@@ -17,20 +17,25 @@ public:
     void print_current_scope();
     void print_all_scopes(ofstream& outlog);
 
-    // you can add more methods if you need 
+    
 };
 
-// complete the methods of symbol_table class
+
+symbol_table::symbol_table(int bucket_count)
+{
+    this->bucket_count = bucket_count;
+}
 
 
-// void symbol_table::print_all_scopes(ofstream& outlog)
-// {
-//     outlog<<"################################"<<endl<<endl;
-//     scope_table *temp = current_scope;
-//     while (temp != NULL)
-//     {
-//         temp->print_scope_table(outlog);
-//         temp = temp->get_parent_scope();
-//     }
-//     outlog<<"################################"<<endl<<endl;
-// }
+
+void symbol_table::print_all_scopes(ofstream& outlog)
+{
+    outlog<<"################################"<<endl<<endl;
+    scope_table *temp = current_scope;
+    while (temp != NULL)
+    {
+        temp->print_scope_table(outlog);
+        temp = temp->get_parent_scope();
+    }
+    outlog<<"################################"<<endl<<endl;
+}
