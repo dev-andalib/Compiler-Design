@@ -1,7 +1,7 @@
 %{
 
 #include "symbol_table.h"
-
+using namespace std;
 #define YYSTYPE symbol_info*
 
 extern FILE *yyin;
@@ -10,38 +10,37 @@ int yylex(void);
 extern YYSTYPE yylval;
 
 // create your symbol table here. 10 for bucket size
-symbol_table * symtbl = new symbol_table(10); 
 
+std::vector<std::string> param_types;
+std::vector<std::string> param_names;
+bool inject_params_next_scope = false;
 
+std::string current_decl_type;
 // You can store the pointer to your symbol table in a global variable
 // or you can create an object
-std::string current_decl_type;
 
 
 int lines = 1;
 
-ofstream outlog;
+ofstream outlog("log.txt");
+symbol_table * symtbl = new symbol_table(10);
+
 
 // you may declare other necessary variables here to store necessary info
 // such as current variable type, variable list, function name, return type, function parameter types, parameters names etc.
 
 
 
-void yyerror(char *s)
+void yyerror(const char *s)
 {
-	outlog<<"At line "<<lines<<" "<<s<<endl<<endl;
+	outlog<<"At line no:"<<lines<<" "<<s<<endl<<endl;
 
     // you may need to reinitialize variables if you find an error
 }
 
 %}
 
-%token IF ELSE FOR WHILE DO BREAK INT CHAR FLOAT DOUBLE VOID RETURN
-%token LPAREN RPAREN LCURL RCURL LTHIRD RTHIRD COMMA SEMICOLON
-%token ASSIGNOP RELOP LOGICOP ADDOP MULOP INCOP DECOP NOT
-%token PRINTLN CONTINUE
-%token CONST_INT CONST_FLOAT ID
-
+%token IF ELSE FOR WHILE DO BREAK INT CHAR FLOAT DOUBLE VOID RETURN SWITCH CASE DEFAULT CONTINUE PRINTLN ADDOP MULOP INCOP DECOP RELOP ASSIGNOP LOGICOP NOT LPAREN RPAREN LCURL RCURL LTHIRD RTHIRD COMMA SEMICOLON CONST_INT CONST_FLOAT ID
 %nonassoc LOWER_THAN_ELSE
 %nonassoc ELSE
 
@@ -93,6 +92,7 @@ func_definition
 		: type_specifier ID LPAREN parameter_list RPAREN 
 		{
 		  	// insert/update the function symbol in *global* scope
+			inject_params_next_scope = true;
 			symbol_info* f = new symbol_info($2->get_name(), "ID");
 			f->set_ID_type("function");
 			f->set_var_type($1->get_name());
@@ -114,7 +114,7 @@ func_definition
 		}
 		| type_specifier ID LPAREN RPAREN 
 		{
-			param_types.clear(); param_names.clear();
+			inject_params_next_scope = true;
 			symbol_info* f = new symbol_info($2->get_name(), "ID");
 			f->set_ID_type("function");
 			f->set_var_type($1->get_name());
@@ -190,7 +190,7 @@ compound_statement
 			{
 			symtbl->enter_scope();               // new block
 			
-			extern std::vector<std::string> param_types, param_names;
+			if (inject_params_next_scope) {
 			for (size_t i = 0; i < param_types.size(); ++i) 
 			{
 			if (param_types[i] == "void") continue;
@@ -200,6 +200,9 @@ compound_statement
 			ps->set_var_type(param_types[i]);
 			if (!symtbl->insert(ps)) delete ps;
 			}
+			inject_params_next_scope = false;
+			}
+			
 			}
       
 			statements RCURL
@@ -217,6 +220,17 @@ compound_statement
  		    | LCURL 
 			{
         		symtbl->enter_scope();
+				if (inject_params_next_scope) {
+          for (size_t i = 0; i < param_types.size(); ++i) {
+            if (param_types[i] == "void") continue;
+            if (i >= param_names.size() || param_names[i].empty()) continue;
+            symbol_info* ps = new symbol_info(param_names[i], "ID");
+            ps->set_ID_type("variable");
+            ps->set_var_type(param_types[i]);
+            if (!symtbl->insert(ps)) delete ps;
+          }
+          inject_params_next_scope = false;
+        }
       		}
 			RCURL
  		    { 
