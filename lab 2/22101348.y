@@ -23,7 +23,7 @@ std::string current_decl_type;
 int lines = 1;
 
 ofstream outlog("log.txt");
-symbol_table * table;
+symbol_table * symtbl;
 
 
 // you may declare other necessary variables here to store necessary info
@@ -662,7 +662,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 	//
-	table = new symbol_table(10);
+	symtbl = new symbol_table(10);
 	yyparse();
 	
 	outlog<<endl<<"Total lines: "<<lines<<endl;
