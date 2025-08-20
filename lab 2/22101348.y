@@ -23,7 +23,7 @@ std::string current_decl_type;
 int lines = 1;
 
 ofstream outlog("log.txt");
-symbol_table * symtbl = new symbol_table(10);
+symbol_table * table;
 
 
 // you may declare other necessary variables here to store necessary info
@@ -661,6 +661,8 @@ int main(int argc, char *argv[])
 		cout<<"Couldn't open file"<<endl;
 		return 0;
 	}
+	//
+	table = new symbol_table(10);
 	yyparse();
 	
 	outlog<<endl<<"Total lines: "<<lines<<endl;
