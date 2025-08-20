@@ -25,8 +25,10 @@ extern ofstream outlog;
 %}
 
 /* Regular Definitions */
-
 delim	 [ \t\v\r]
+
+
+
 
 /* write regular expressions for whitespace and newline */
 ws	{delim}+
