@@ -487,14 +487,36 @@ variable : ID
       {
 	    outlog<<"At line no: "<<lines<<" variable : ID "<<endl<<endl;
 		outlog<<$1->getname()<<endl<<endl;
-			
+
+		// SEMANTIC CHECK: Look up the variable
+        symbol_info* temp = new symbol_info($1->getname(), "ID");
+        symbol_info* found = table->lookup(temp);
+        delete temp;
+
+        // Check if an array is being used without an index
+        if(found != NULL && found->get_is_array()){
+            yyerror("Type mismatch, array used without index");
+	  }	
+
+
 		$$ = new symbol_info($1->getname(),"varbl");
+		
 		
 	 }	
 	 | ID LTHIRD expression RTHIRD 
 	 {
 	 	outlog<<"At line no: "<<lines<<" variable : ID LTHIRD expression RTHIRD "<<endl<<endl;
 		outlog<<$1->getname()<<"["<<$3->getname()<<"]"<<endl<<endl;
+
+		// SEMANTIC CHECK
+        symbol_info* temp = new symbol_info($1->getname(), "ID");
+        symbol_info* found = table->lookup(temp);
+        delete temp;
+
+        // Check if an index is used with a non-array variable
+        if(found != NULL && !found->get_is_array()){
+            yyerror("is not an array");
+	    }
 		
 		$$ = new symbol_info($1->getname()+"["+$3->getname()+"]","varbl");
 	 }
