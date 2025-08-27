@@ -152,7 +152,7 @@ public:
         this->return_type = return_type;
         this->parameters = params;
     }
-    // Write necessary functions to set and get the attributes
+    
 
     ~symbol_info()
     {
