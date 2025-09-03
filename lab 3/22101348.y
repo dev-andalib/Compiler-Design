@@ -906,8 +906,8 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 	yyin = fopen(argv[1], "r");
-	outlog.open("21201519_output.txt", ios::trunc);
-	outerror.open("21201519_error.txt", ios::trunc);
+	outlog.open("22101348_output.txt", ios::trunc);
+	outerror.open("22101348_error.txt", ios::trunc);
 	
 	if(yyin == NULL)
 	{

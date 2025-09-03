@@ -1,10 +1,10 @@
 #!/bin/bash
 
-yacc -d -y --debug --verbose 21201519.y
+yacc -d -y --debug --verbose 22101348.y
 echo 'Generated the parser C file as well the header file'
 g++ -w -c -o y.o y.tab.c
 echo 'Generated the parser object file'
-flex 21201519.l
+flex 22101348.l
 echo 'Generated the scanner C file'
 g++ -fpermissive -w -c -o l.o lex.yy.c
 # if the above command doesn't work try g++ -fpermissive -w -c -o l.o lex.yy.c
@@ -14,5 +14,5 @@ echo 'All ready, running'
 ./a.exe input.c
 echo 'logfile'
 echo 'errorfile'
-# cat 21201519_output.txt
-# cat 21201519_error.txt
+# cat 22101348_output.txt
+# cat 22101348_error.txt
