@@ -89,3 +89,17 @@ public:
     }
 };
 
+// complete the methods of symbol_table class
+
+
+// void symbol_table::print_all_scopes(ofstream& outlog)
+// {
+//     outlog<<"################################"<<endl<<endl;
+//     scope_table *temp = current_scope;
+//     while (temp != NULL)
+//     {
+//         temp->print_scope_table(outlog);
+//         temp = temp->get_parent_scope();
+//     }
+//     outlog<<"################################"<<endl<<endl;
+// }

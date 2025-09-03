@@ -1,6 +1,7 @@
 %{
 
 #include "symbol_table.h"
+#include <set>
 
 #define YYSTYPE symbol_info*
 
@@ -9,9 +10,6 @@ int yyparse(void);
 int yylex(void);
 extern YYSTYPE yylval;
 
-// create your symbol table here.
-// You can store the pointer to your symbol table in a global variable
-// or you can create an object
 
 symbol_table *table;
 
@@ -19,12 +17,17 @@ string current_type;
 string current_func_name;
 string current_func_return_type;
 vector< pair<string, string> > current_func_params;
+set<string> processed_functions;
 bool is_function_definition = false;
-bool error_found = false;
 
+
+int error_count = 0;
 int lines = 1;
 
+
 ofstream outlog;
+ofstream outerror;
+bool error_status = false;
 
 // you may declare other necessary variables here to store necessary info
 // such as current variable type, variable list, function name, return type, function parameter types, parameters names etc.
@@ -35,7 +38,7 @@ bool is_function_declared(string name) {
     symbol_info* temp = new symbol_info(name, "ID");
     symbol_info* found = table->lookup(temp);
     delete temp;
-    return found != NULL && found->get_is_function();
+    return found != NULL;
 }
 
 
@@ -50,8 +53,9 @@ bool is_variable_declared_current_scope(string name) {
 
 void yyerror(char *s)
 {
-	outlog<<"Error At line "<<lines<<" "<<s<<endl<<endl;
-	error_found = true;
+	outlog<<"At line no"<<lines<<" "<<s<<endl<<endl;
+	current_func_params.clear();
+	current_type= "";
 
     // you may need to reinitialize variables if you find an error
 }
@@ -106,46 +110,66 @@ unit : var_declaration
 	 }
      ;
 
-func_definition : type_specifier ID LPAREN parameter_list RPAREN {
+func_definition : type_specifier ID LPAREN {
+
+			current_func_name = $2->getname();
+        	current_func_return_type = $1->getname();
+
+		} parameter_list RPAREN {
 
 			if(!is_function_declared($2->getname())) {
-				vector<pair<string, string> > params = current_func_params;
-				symbol_info* func = new symbol_info($2->getname(), "ID", $1->getname());
-				func->set_as_function($1->getname(), params);
+				symbol_info* func = new symbol_info($2->getname(), "ID", $1->getname(), current_func_params);
+				func->set_symbol_type($1->getname());
 				table->insert(func);
+			} else {
+				outerror << " " << endl;
+                outerror << "At line no: " << lines << " Multiple declaration of function " << $2->getname() << endl;
+                error_count++;
 			}
+			is_function_definition = true;
 
 		} compound_statement
 		{	
 			outlog<<"At line no: "<<lines<<" func_definition : type_specifier ID LPAREN parameter_list RPAREN compound_statement "<<endl<<endl;
-			outlog<<$1->getname()<<" "<<$2->getname()<<"("+$4->getname()+")\n"<<$7->getname()<<endl<<endl;
+			outlog<<$1->getname()<<" "<<$2->getname()<<"("+$5->getname()+")\n"<<$8->getname()<<endl<<endl;
 			
-			$$ = new symbol_info($1->getname()+" "+$2->getname()+"("+$4->getname()+")\n"+$7->getname(),"func_def");
-
+			$$ = new symbol_info($1->getname()+" "+$2->getname()+"("+$5->getname()+")\n"+$8->getname(),"func_def");
+			
 			current_func_params.clear();
+			is_function_definition = false;
 			
 			// The function definition is complete.
             // You can now insert necessary information about the function into the symbol table
             // However, note that the scope of the function and the scope of the compound statement are different.
 		}
-		| type_specifier ID LPAREN RPAREN {
+		| type_specifier ID LPAREN {
+
+			current_func_name = $2->getname();
+        	current_func_return_type = $1->getname();
+
+		} RPAREN {
 
 			if(!is_function_declared($2->getname())) {
-				vector<pair<string, string> > params;
-				symbol_info* func = new symbol_info($2->getname(), "ID", $1->getname());
-				func->set_as_function($1->getname(), params);
+				symbol_info* func = new symbol_info($2->getname(), "ID", $1->getname(), current_func_params);
+				func->set_symbol_type($1->getname());
 				table->insert(func);
+			} else {
+				outerror << " " << endl;
+                outerror << "At line no: " << lines << " Multiple declaration of function " << $2->getname() << endl;
+                error_count++;
 			}
+			is_function_definition = true;
 
 		} compound_statement
 		{
 			
 			outlog<<"At line no: "<<lines<<" func_definition : type_specifier ID LPAREN RPAREN compound_statement "<<endl<<endl;
-			outlog<<$1->getname()<<" "<<$2->getname()<<"()\n"<<$6->getname()<<endl<<endl;
+			outlog<<$1->getname()<<" "<<$2->getname()<<"()\n"<<$7->getname()<<endl<<endl;
 			
-			$$ = new symbol_info($1->getname()+" "+$2->getname()+"()\n"+$6->getname(),"func_def");	
+			$$ = new symbol_info($1->getname()+" "+$2->getname()+"()\n"+$7->getname(),"func_def");	
 			
 			current_func_params.clear();
+			is_function_definition = false;
 
 			// The function definition is complete.
             // You can now insert necessary information about the function into the symbol table
@@ -154,14 +178,22 @@ func_definition : type_specifier ID LPAREN parameter_list RPAREN {
  		;
 
 parameter_list : parameter_list COMMA type_specifier ID
-		{
+		{	
+			for (auto param: current_func_params){
+                if (param.second == $4->getname()){
+                    outerror << "At line no: " << lines << " Multiple declaration of variable " << $4->getname() << " in parameter of "<< current_func_name << endl;
+                    error_count++;
+                    error_status=true;
+                    break; 
+                }
+            }
+			pair<string, string> param($3->getname(), $4->getname());
+			current_func_params.push_back(param);
+
 			outlog<<"At line no: "<<lines<<" parameter_list : parameter_list COMMA type_specifier ID "<<endl<<endl;
 			outlog<<$1->getname()<<","<<$3->getname()<<" "<<$4->getname()<<endl<<endl;
 					
 			$$ = new symbol_info($1->getname()+","+$3->getname()+" "+$4->getname(),"param_list");
-			
-			pair<string, string> param($3->getname(), $4->getname());
-			current_func_params.push_back(param);
 
             // store the necessary information about the function parameters
             // They will be needed when you want to enter the function into the symbol table
@@ -180,14 +212,22 @@ parameter_list : parameter_list COMMA type_specifier ID
             // They will be needed when you want to enter the function into the symbol table
 		}
  		| type_specifier ID
- 		{
+ 		{	
+			for (auto param: current_func_params){
+                if (param.second == $2->getname()){
+                    outerror << "At line no: " << lines << " Multiple declaration of variable " << $2->getname() << " in parameter of "<< current_func_name << endl;
+                    error_count++;
+                    error_status=true;
+                    break; 
+                }
+            }
+			pair<string, string> param($1->getname(), $2->getname());
+			current_func_params.push_back(param);
+
 			outlog<<"At line no: "<<lines<<" parameter_list : type_specifier ID "<<endl<<endl;
 			outlog<<$1->getname()<<" "<<$2->getname()<<endl<<endl;
 			
 			$$ = new symbol_info($1->getname()+" "+$2->getname(),"param_list");
-			
-			pair<string, string> param($1->getname(), $2->getname());
-			current_func_params.push_back(param);
 
             // store the necessary information about the function parameters
             // They will be needed when you want to enter the function into the symbol table
@@ -216,7 +256,14 @@ compound_statement : LCURL {
 					for(auto param : current_func_params) {
 						if(!param.second.empty()) {
 							symbol_info* param_symbol = new symbol_info(param.second, "ID", param.first);
-							table->insert(param_symbol);
+							if(not error_status){
+								if(!table->insert(param_symbol)){
+									outerror<< " " <<endl;
+									outerror << "At line no: " << lines << "Multiple declaration of variable " << param.second <<endl;
+									error_count++;
+								}
+							}
+							
 						}
 					}
 				}
@@ -226,11 +273,11 @@ compound_statement : LCURL {
  		    	outlog<<"At line no: "<<lines<<" compound_statement : LCURL statements RCURL "<<endl<<endl;
 				outlog<<"{\n"+$3->getname()+"\n}"<<endl<<endl;
 				
-				$$ = new symbol_info("{\n"+$3->getname()+"\n}","comp_stmnt");
-				
 				table->print_all_scopes(outlog);
 
 				table->exit_scope();
+
+				$$ = new symbol_info("{\n"+$3->getname()+"\n}","comp_stmnt");
 
                 // The compound statement is complete.
                 // Print the symbol table here and exit the scope
@@ -243,11 +290,11 @@ compound_statement : LCURL {
  		    	outlog<<"At line no: "<<lines<<" compound_statement : LCURL RCURL "<<endl<<endl;
 				outlog<<"{\n}"<<endl<<endl;
 
-				$$ = new symbol_info("{\n}","comp_stmnt");
-
 				table->print_all_scopes(outlog);
 
-				table->exit_scope();			
+				table->exit_scope();	
+
+				$$ = new symbol_info("{\n"+$3->getname()+"\n}","comp_stmnt");		
 				
 				// The compound statement is complete.
                 // Print the symbol table here and exit the scope
@@ -256,18 +303,18 @@ compound_statement : LCURL {
  		    
 var_declaration : type_specifier declaration_list SEMICOLON
 		 {
+
+			if ($1->getname()=="void"){
+				outerror<< " " <<endl;
+				outerror << "At line no: " << lines << " variable type can not be void " << endl;
+				error_count++;
+			}
+			
 			outlog<<"At line no: "<<lines<<" var_declaration : type_specifier declaration_list SEMICOLON "<<endl<<endl;
 			outlog<<$1->getname()<<" "<<$2->getname()<<";"<<endl<<endl;
 			
 			$$ = new symbol_info($1->getname()+" "+$2->getname()+";","var_dec");
 
-			current_type = $1->getname();
-			
-			
-			if(current_type == "void") {
-				yyerror("Variable type cannot be void");
-			}
-			
 			// Insert necessary information about the variables in the symbol table
 		 }
  		 ;
@@ -306,16 +353,19 @@ declaration_list : declaration_list COMMA ID
  		  	outlog<<"At line no: "<<lines<<" declaration_list : declaration_list COMMA ID "<<endl<<endl;
  		  	outlog<<$1->getname()+","<<$3->getname()<<endl<<endl;
 
+			$$ = new symbol_info($1->getname() + "," + $3->getname(), "decl_list");
+
             // you may need to store the variable names to insert them in symbol table here or later
 			
 			if(is_variable_declared_current_scope($3->getname())) {
-                
-                $$ = new symbol_info($1->getname() + "," + $3->getname(), "decl_list");
+                outerror<< " " <<endl;
+				outerror << "At line no: " << lines << " Multiple declaration of variable " << $3->getname() << endl;
+        		error_count++;
             } else {
                 
                 symbol_info* new_var = new symbol_info($3->getname(), "ID", current_type);
                 table->insert(new_var);
-                $$ = new symbol_info($1->getname() + "," + $3->getname(), "decl_list");
+                
             }
 
  		  }
@@ -324,17 +374,21 @@ declaration_list : declaration_list COMMA ID
  		  	outlog<<"At line no: "<<lines<<" declaration_list : declaration_list COMMA ID LTHIRD CONST_INT RTHIRD "<<endl<<endl;
  		  	outlog<<$1->getname()+","<<$3->getname()<<"["<<$5->getname()<<"]"<<endl<<endl;
 
+			$$ = new symbol_info($1->getname() + "," + $3->getname() + "[" + $5->getname() + "]", "decl_list");
+
             // you may need to store the variable names to insert them in symbol table here or later
 			
 			if(is_variable_declared_current_scope($3->getname())) {
-                
-                $$ = new symbol_info($1->getname() + "," + $3->getname() + "[" + $5->getname() + "]", "decl_list");
+                outerror<< " " <<endl;
+				outerror << "At line no: " << lines << " Multiple declaration of variable " << $3->getname() << endl;
+        		error_count++;
+
             } else {
                 
                 int size = stoi($5->getname());
-                symbol_info* new_array = new symbol_info($3->getname(), "ID", current_type, size);
+				symbol_info* new_array = new symbol_info($3->getname(), "ID", current_type, size);
                 table->insert(new_array);
-                $$ = new symbol_info($1->getname() + "," + $3->getname() + "[" + $5->getname() + "]", "decl_list");
+                
             }
 
  		  }
@@ -343,16 +397,18 @@ declaration_list : declaration_list COMMA ID
  		  	outlog<<"At line no: "<<lines<<" declaration_list : ID "<<endl<<endl;
 			outlog<<$1->getname()<<endl<<endl;
 
+			$$ = new symbol_info($1->getname(), "decl_list");
+
             // you may need to store the variable names to insert them in symbol table here or later
 			
 			if(is_variable_declared_current_scope($1->getname())) {
-                
-                $$ = new symbol_info($1->getname(), "decl_list");
+                outerror<< " " <<endl;
+				outerror << "At line no: " << lines << " Multiple declaration of variable " << $1->getname() << endl;
+        		error_count++;
             } else {
                 
                 symbol_info* new_var = new symbol_info($1->getname(), "ID", current_type);
                 table->insert(new_var);
-                $$ = new symbol_info($1->getname(), "decl_list");
 			}
 
  		  }
@@ -361,17 +417,20 @@ declaration_list : declaration_list COMMA ID
  		  	outlog<<"At line no: "<<lines<<" declaration_list : ID LTHIRD CONST_INT RTHIRD "<<endl<<endl;
 			outlog<<$1->getname()<<"["<<$3->getname()<<"]"<<endl<<endl;
 
+			$$ = new symbol_info($1->getname() + "[" + $3->getname() + "]", "decl_list");
+
             // you may need to store the variable names to insert them in symbol table here or later
             
 			if(is_variable_declared_current_scope($1->getname())) {
-                
-                $$ = new symbol_info($1->getname() + "[" + $3->getname() + "]", "decl_list");
+                outerror<< " " <<endl;
+				outerror << "At line no: " << lines << " Multiple declaration of variable " << $3->getname() << endl;
+        		error_count++;
+            
             } else {
                 
                 int size = stoi($3->getname());
                 symbol_info* new_array = new symbol_info($1->getname(), "ID", current_type, size);
                 table->insert(new_array);
-                $$ = new symbol_info($1->getname() + "[" + $3->getname() + "]", "decl_list");
             }
 
  		  }
@@ -457,6 +516,13 @@ statement : var_declaration
 			outlog<<"printf("<<$3->getname()<<");"<<endl<<endl; 
 			
 			$$ = new symbol_info("printf("+$3->getname()+");","stmnt");
+
+			if (!table->lookup(new symbol_info($3->getname(), "ID"))){
+				outerror<< " " <<endl;
+				outerror << "At line no: " << lines << " Undeclared variable " << $3->getname() << endl;
+				error_count++;
+				error_status=true;
+			}
 	  }
 	  | RETURN expression SEMICOLON
 	  {
@@ -483,43 +549,62 @@ expression_statement : SEMICOLON
 	        }
 			;
 	  
-variable : ID
-{
-    outlog << "At line no: " << lines << " variable : ID " << endl << endl;
-    outlog << $1->getname() << endl << endl;
+variable : ID 	
+      {
+	    outlog<<"At line no: "<<lines<<" variable : ID "<<endl<<endl;
+		outlog<<$1->getname()<<endl<<endl;
+			
+		$$ = new symbol_info($1->getname(),"varbl");
 
-    // SEMANTIC CHECK: Look up the variable
-    symbol_info* temp = new symbol_info($1->getname(), "ID");
-    symbol_info* found = table->lookup(temp);
-    delete temp;
+		symbol_info* var = table->lookup(new symbol_info($1->getname(), "ID"));
+		if (!var) {
+			outerror<< " " <<endl;
+			outerror << "At line no: " << lines << " Undeclared variable " << $1->getname() << endl;
+			error_count++;
+			error_status= true;
+	 	}
+		else if (var->get_is_array()){
+			outerror<< " " <<endl;
+			outerror << "At line no: " << lines << " variable is of array type : " << $1->getname() << endl;
+			error_count++;
+			error_status = true;
+		}
+		else if (var->get_is_function()){
+			outerror<< " " <<endl;
+			outerror << "At line no: " << lines << " variable is of function type : " << $1->getname() << endl;
+			error_count++;
+			error_status = true;
+		}
+		if(var){
+			$$->set_symbol_type(var->get_symbol_type());
+		}
+		
+	 }	
+	 | ID LTHIRD expression RTHIRD 
+	 {
+	 	outlog<<"At line no: "<<lines<<" variable : ID LTHIRD expression RTHIRD "<<endl<<endl;
+		outlog<<$1->getname()<<"["<<$3->getname()<<"]"<<endl<<endl;
+		
+		$$ = new symbol_info($1->getname()+"["+$3->getname()+"]","varbl");
 
-    // Check if an array is being used without an index
-    if (found != NULL && found->get_is_array()) {
-        outerror << "At line no: " << lines << " variable is of array type : " << $1->getname() << endl;
-        yyerror("Type mismatch, array used without index");
-    }
-
-    $$ = new symbol_info($1->getname(), "varbl");
-}
-| ID LTHIRD expression RTHIRD
-{
-    outlog << "At line no: " << lines << " variable : ID LTHIRD expression RTHIRD " << endl << endl;
-    outlog << $1->getname() << "[" << $3->getname() << "]" << endl << endl;
-
-    // SEMANTIC CHECK
-    symbol_info* temp = new symbol_info($1->getname(), "ID");
-    symbol_info* found = table->lookup(temp);
-    delete temp;
-
-    // Check if an index is used with a non-array variable
-    if (found != NULL && !found->get_is_array()) {
-        outerror << "At line no: " << lines << " variable is not of array type : " << $1->getname() << endl;
-        yyerror("is not an array");
-    }
-
-    $$ = new symbol_info($1->getname() + "[" + $3->getname() + "]", "varbl");
-}
-;
+		symbol_info* arr = table->lookup(new symbol_info($1->getname(), "ID"));
+		if (!arr || !arr->get_is_array()) {
+			outerror<< " " <<endl;
+			outerror << "At line no: " << lines << " variable is not of array type : " << $1->getname() << endl;
+			error_count++;
+			error_status=true;
+		}
+		if ($3->get_symbol_type() != "int") {
+			outerror<< " " <<endl;
+			outerror << "At line no: " << lines << " array index is not of integer type : " << $1->getname() << endl;
+			error_count++;
+			error_status=true;
+		}
+		if(arr){
+			$$->set_symbol_type(arr->get_symbol_type());
+		}
+	 }
+	 ;
 	 
 expression : logic_expression
 	   {
@@ -527,6 +612,7 @@ expression : logic_expression
 			outlog<<$1->getname()<<endl<<endl;
 			
 			$$ = new symbol_info($1->getname(),"expr");
+			$$->set_symbol_type($1->get_symbol_type());
 	   }
 	   | variable ASSIGNOP logic_expression 	
 	   {
@@ -534,6 +620,23 @@ expression : logic_expression
 			outlog<<$1->getname()<<"="<<$3->getname()<<endl<<endl;
 
 			$$ = new symbol_info($1->getname()+"="+$3->getname(),"expr");
+
+			if ($3->get_symbol_type() == "void") {
+				outerror << " " << endl;
+				outerror << "At line no: " << lines << " operation on void type " << endl;
+				error_count++;
+				error_status = true;
+			}
+
+			if (error_status != true){
+				if ($1->get_symbol_type() != $3->get_symbol_type()){
+					outerror<< " " <<endl;
+					outerror << "At line no: " << lines << " Warning: Assignment of " << $3->get_symbol_type() << " value into variable of integer type " << endl;
+					error_count++;
+					error_status=true;           
+				}
+			}
+			error_status=false;
 	   }
 	   ;
 			
@@ -543,6 +646,7 @@ logic_expression : rel_expression
 			outlog<<$1->getname()<<endl<<endl;
 			
 			$$ = new symbol_info($1->getname(),"lgc_expr");
+			$$->set_symbol_type($1->get_symbol_type());
 	     }	
 		 | rel_expression LOGICOP rel_expression 
 		 {
@@ -550,6 +654,7 @@ logic_expression : rel_expression
 			outlog<<$1->getname()<<$2->getname()<<$3->getname()<<endl<<endl;
 			
 			$$ = new symbol_info($1->getname()+$2->getname()+$3->getname(),"lgc_expr");
+			$$->set_symbol_type("int");
 	     }	
 		 ;
 			
@@ -559,6 +664,7 @@ rel_expression	: simple_expression
 			outlog<<$1->getname()<<endl<<endl;
 			
 			$$ = new symbol_info($1->getname(),"rel_expr");
+			$$->set_symbol_type($1->get_symbol_type());
 	    }
 		| simple_expression RELOP simple_expression
 		{
@@ -566,6 +672,7 @@ rel_expression	: simple_expression
 			outlog<<$1->getname()<<$2->getname()<<$3->getname()<<endl<<endl;
 			
 			$$ = new symbol_info($1->getname()+$2->getname()+$3->getname(),"rel_expr");
+			$$->set_symbol_type("int");
 	    }
 		;
 				
@@ -575,6 +682,7 @@ simple_expression : term
 			outlog<<$1->getname()<<endl<<endl;
 			
 			$$ = new symbol_info($1->getname(),"simp_expr");
+			$$->set_symbol_type($1->get_symbol_type());
 			
 	      }
 		  | simple_expression ADDOP term 
@@ -583,6 +691,7 @@ simple_expression : term
 			outlog<<$1->getname()<<$2->getname()<<$3->getname()<<endl<<endl;
 			
 			$$ = new symbol_info($1->getname()+$2->getname()+$3->getname(),"simp_expr");
+			$$->set_symbol_type($1->get_symbol_type());
 	      }
 		  ;
 					
@@ -592,14 +701,34 @@ term :	unary_expression //term can be void because of un_expr->factor
 			outlog<<$1->getname()<<endl<<endl;
 			
 			$$ = new symbol_info($1->getname(),"term");
+			$$->set_symbol_type($1->get_symbol_type());
 			
 	 }
      |  term MULOP unary_expression
      {
-	    	outlog<<"At line no: "<<lines<<" term : term MULOP unary_expression "<<endl<<endl;
+	    	if ($3->get_symbol_type() == "void") {
+				outerror << " " << endl;
+				outerror << "At line no: " << lines << " operation on void type " << endl;
+				error_count++;
+				error_status = true;
+			}
+			if ($2->getname()=="%") {
+				if ($1->get_symbol_type() != "int" || $3->get_symbol_type() != "int") {
+					outerror<< " " <<endl;
+					outerror << "At line no: " << lines << " Modulus operator on non integer type" << endl;
+					error_count++;
+				}
+			}
+			if ($3->getname() =="0") {
+				outerror<< " " <<endl;
+				outerror << "At line no: "<< lines << " Modulus by 0" << endl;
+				error_count++;
+			}
+			outlog<<"At line no: "<<lines<<" term : term MULOP unary_expression "<<endl<<endl;
 			outlog<<$1->getname()<<$2->getname()<<$3->getname()<<endl<<endl;
 			
 			$$ = new symbol_info($1->getname()+$2->getname()+$3->getname(),"term");
+			$$->set_symbol_type($1->get_symbol_type());
 			
 	 }
      ;
@@ -624,6 +753,7 @@ unary_expression : ADDOP unary_expression  // un_expr can be void because of fac
 			outlog<<$1->getname()<<endl<<endl;
 			
 			$$ = new symbol_info($1->getname(),"un_expr");
+			$$->set_symbol_type($1->get_symbol_type());
 	     }
 		 ;
 	
@@ -633,6 +763,7 @@ factor	: variable
 		outlog<<$1->getname()<<endl<<endl;
 			
 		$$ = new symbol_info($1->getname(),"fctr");
+		$$->set_symbol_type($1->get_symbol_type());
 	}
 	| ID LPAREN argument_list RPAREN
 	{
@@ -641,31 +772,41 @@ factor	: variable
 
 		$$ = new symbol_info($1->getname()+"("+$3->getname()+")","fctr");
 
-		symbol_info* function_symbol = table->lookup(new symbol_info($1->getname(), "FUNCTION"));
-
-		if (!function_symbol || !function_symbol->get_is_function()) {
-			outerror << " " << endl;
-			outerror << "At line no: " << lines << " Undeclared function: " << $1->getname() << endl;
-			error_count++;
-			error_status = true;
-		}
-
-		if (function_symbol && function_symbol->get_is_function() && !error_status) {
-			$$->set_symbol_type(function_symbol->get_symbol_type());
-
-			vector<pair<string, string>> parameter_list = function_symbol->get_parameters();
-			vector<pair<string, string>> argument_list = $3->get_parameters();
-
-			if (argument_list.size() != parameter_list.size()) {
+		symbol_info* func = table->lookup(new symbol_info($1->getname(), "FUNCTION"));
+		
+		if (processed_functions.find($1->getname()) != processed_functions.end()) {
+			processed_functions.erase($1->getname());
+		} else {
+			processed_functions.insert($1->getname());
+			
+			if (!func || !func->get_is_function()) {
 				outerror << " " << endl;
-				outerror << "At line no: " << lines << " Inconsistencies in number of arguments in function call: " << function_symbol->getname() << endl;
+				outerror << "At line no: " << lines << " Undeclared function: " << $1->getname() << endl;
 				error_count++;
 				error_status = true;
-			} else {
-				for (int i = 0; i < argument_list.size(); i++) {
-					if (argument_list[i].first != parameter_list[i].first) {
+			}
+		}
+
+		
+		if (func && func->get_is_function() && !error_status) {
+			$$->set_symbol_type(func->get_symbol_type());
+			
+			vector<pair<string, string>> params = func->get_parameters();
+			vector<pair<string, string>> args = $3->get_parameters();
+
+			
+			if (args.size() != params.size()) {
+				outerror << " " << endl;
+				outerror << "At line no: " << lines << " Inconsistencies in number of arguments in function call: " << func->getname() << endl;
+				error_count++;
+				error_status = true; 
+			} 
+			
+			else {
+				for (int i = 0; i < args.size(); i++) {
+					if (args[i].first != params[i].first) {
 						outerror << " " << endl;
-						outerror << "At line no: " << lines << " argument " << i + 1 << " type mismatch in function call: " << function_symbol->getname() << endl;
+						outerror << "At line no: " << lines << " argument " << i + 1 << " type mismatch in function call: " << func->getname() << endl;
 						error_count++;
 					}
 				}
@@ -678,6 +819,7 @@ factor	: variable
 		outlog<<"("<<$2->getname()<<")"<<endl<<endl;
 		
 		$$ = new symbol_info("("+$2->getname()+")","fctr");
+		$$->set_symbol_type($2->get_symbol_type());
 	}
 	| CONST_INT 
 	{
@@ -685,6 +827,7 @@ factor	: variable
 		outlog<<$1->getname()<<endl<<endl;
 			
 		$$ = new symbol_info($1->getname(),"fctr");
+		$$->set_symbol_type("int");
 	}
 	| CONST_FLOAT
 	{
@@ -692,6 +835,7 @@ factor	: variable
 		outlog<<$1->getname()<<endl<<endl;
 			
 		$$ = new symbol_info($1->getname(),"fctr");
+		$$->set_symbol_type("float");
 	}
 	| variable INCOP 
 	{
@@ -715,6 +859,7 @@ argument_list : arguments
 					outlog<<$1->getname()<<endl<<endl;
 						
 					$$ = new symbol_info($1->getname(),"arg_list");
+					$$->set_parameters($1->get_parameters());
 			  }
 			  |
 			  {
@@ -722,6 +867,7 @@ argument_list : arguments
 					outlog<<""<<endl<<endl;
 						
 					$$ = new symbol_info("","arg_list");
+					$$->set_parameters(vector<pair<string, string>>());
 			  }
 			  ;
 	
@@ -729,15 +875,23 @@ arguments : arguments COMMA logic_expression
 		  {
 				outlog<<"At line no: "<<lines<<" arguments : arguments COMMA logic_expression "<<endl<<endl;
 				outlog<<$1->getname()<<","<<$3->getname()<<endl<<endl;
+				vector<pair<string, string>> params = $1->get_parameters();
+				params.push_back({$3->get_symbol_type(), $3->getname()});
 						
 				$$ = new symbol_info($1->getname()+","+$3->getname(),"arg");
+				$$->set_parameters(params);
+
 		  }
 	      | logic_expression
 	      {
 				outlog<<"At line no: "<<lines<<" arguments : logic_expression "<<endl<<endl;
 				outlog<<$1->getname()<<endl<<endl;
+				vector<pair<string, string>> params;
+				params.push_back({$1->get_symbol_type(), $1->getname()});
 						
 				$$ = new symbol_info($1->getname(),"arg");
+				$$->set_parameters(params);
+				
 		  }
 	      ;
  
@@ -753,6 +907,7 @@ int main(int argc, char *argv[])
 	}
 	yyin = fopen(argv[1], "r");
 	outlog.open("21201519_output.txt", ios::trunc);
+	outerror.open("21201519_error.txt", ios::trunc);
 	
 	if(yyin == NULL)
 	{
@@ -768,8 +923,11 @@ int main(int argc, char *argv[])
 	delete table;
 
 	outlog<<endl<<"Total lines: "<<lines<<endl;
+	outlog<<endl<<"Total error: "<<error_count<<endl;
+	outerror<<endl<<"Total error: "<<error_count<<endl;
 	
 	outlog.close();
+	outerror.close();
 	
 	fclose(yyin);
 	

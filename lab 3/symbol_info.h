@@ -28,16 +28,11 @@ private:
     vector<pair<string, string> > parameters;
 
 public:
-    symbol_info(string name, string type)
-    {
+    //default
+    symbol_info(string name, string type){
         this->name = name;
         this->type = type;
-        this->next = NULL;
-        this->is_array = false;
-        this->is_function = false;
-
     }
-
     //variables
     symbol_info(string name, string type, string symbol_type)
     {
@@ -135,12 +130,15 @@ public:
         this->next = next; 
     }
 
-    void set_symbol_type(string symbol_type)
-    { 
-        this->symbol_type = symbol_type; 
+    void set_symbol_type(string symbol_type){
+        this->symbol_type = symbol_type;
     }
 
-    void set_array_size(int size)
+    void set_parameters(const vector<pair<string, string>> &params) {
+        this->parameters = params;
+    }
+
+    void set_as_array(int size)
     {
         this->is_array = true;
         this->array_size = size;
@@ -152,12 +150,9 @@ public:
         this->return_type = return_type;
         this->parameters = params;
     }
-    
+    // Write necessary functions to set and get the attributes
 
-    ~symbol_info()
-    {
-        if (next){
-            delete next;
-        }
+    ~symbol_info(){
+        
     }
 };

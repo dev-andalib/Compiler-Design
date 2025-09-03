@@ -151,5 +151,13 @@ public:
         table.clear();
     }
 
-   
+    // you can add more methods if you need
 };
+
+// // complete the methods of scope_table class
+// void scope_table::print_scope_table(ofstream& outlog)
+// {
+//     outlog << "ScopeTable # "+ to_string(unique_id) << endl;
+
+//     //iterate through the current scope table and print the symbols and all relevant information
+// }
